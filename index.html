@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZoningShield RI — Rhode Island Parcel Zoning Explorer</title>
+  <meta name="description" content="ZoningShield RI gives residents, nonprofits, and planners instant zoning clarity for any Rhode Island parcel — no consultants needed." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --surface: #131929;
+      --surface2: #1b2338;
+      --border: #252e45;
+      --accent: #4f8ef7;
+      --accent2: #a78bfa;
+      --accent3: #34d399;
+      --warn: #fb923c;
+      --danger: #f87171;
+      --text: #e2e8f0;
+      --text-muted: #8b9cbf;
+      --glass: rgba(255,255,255,0.04);
+      --glow: 0 0 32px rgba(79,142,247,0.18);
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 40% at 20% 10%, rgba(79,142,247,0.10) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(167,139,250,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 50% 50%, rgba(52,211,153,0.05) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .app { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 0 20px 60px; }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 28px 0 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: linear-gradient(135deg, #4f8ef7 0%, #a78bfa 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 20px rgba(79,142,247,0.35);
+    }
+    .logo-text h1 { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+    .logo-text span { font-size: 12px; color: var(--text-muted); letter-spacing: 0.5px; }
+    .header-badge {
+      background: linear-gradient(135deg, rgba(79,142,247,0.15), rgba(167,139,250,0.15));
+      border: 1px solid rgba(79,142,247,0.3);
+      border-radius: 20px; padding: 6px 14px;
+      font-size: 12px; font-weight: 600; color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+    .search-section { margin-bottom: 32px; }
+    .search-label { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; font-weight: 500; }
+    .search-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .case-btn {
+      flex: 1; min-width: 220px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      cursor: pointer; transition: all 0.2s;
+      text-align: left; color: var(--text);
+      position: relative; overflow: hidden;
+    }
+    .case-btn:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--glow); }
+    .case-btn.active { border-color: var(--accent); background: rgba(79,142,247,0.08); }
+    .case-btn.b:hover { border-color: var(--accent2); }
+    .case-btn.b.active { border-color: var(--accent2); background: rgba(167,139,250,0.08); }
+    .case-tag { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+    .case-btn.b .case-tag { color: var(--accent2); }
+    .case-address { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .case-zone { font-size: 12px; color: var(--text-muted); }
+    .case-btn.active .case-address { color: var(--accent); }
+    .case-btn.b.active .case-address { color: var(--accent2); }
+    .lang-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    .lang-row label { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+    .lang-btn {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 6px 14px;
+      font-size: 12px; font-weight: 500; color: var(--text-muted);
+      cursor: pointer; transition: all 0.18s;
+    }
+    .lang-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .lang-btn.active { background: rgba(79,142,247,0.12); border-color: var(--accent); color: var(--accent); }
+    .panels-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 768px) { .panels-grid { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: box-shadow 0.2s, transform 0.2s;
+      animation: fadeUp 0.45s ease both;
+    }
+    .panel:hover { box-shadow: 0 8px 40px rgba(0,0,0,0.4); transform: translateY(-2px); }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .panel:nth-child(1) { animation-delay: 0.05s; }
+    .panel:nth-child(2) { animation-delay: 0.10s; }
+    .panel:nth-child(3) { animation-delay: 0.15s; }
+    .panel:nth-child(4) { animation-delay: 0.20s; }
+    .panel-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 18px 22px 14px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+    .panel-header::after {
+      content: ''; position: absolute; bottom: -1px; left: 0; height: 2px;
+      border-radius: 2px;
+    }
+    .panel-1 .panel-header::after { background: var(--accent); width: 60px; }
+    .panel-2 .panel-header::after { background: var(--accent2); width: 60px; }
+    .panel-3 .panel-header::after { background: var(--accent3); width: 60px; }
+    .panel-4 .panel-header::after { background: var(--warn); width: 60px; }
+    .panel-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .panel-1 .panel-icon { background: rgba(79,142,247,0.15); }
+    .panel-2 .panel-icon { background: rgba(167,139,250,0.15); }
+    .panel-3 .panel-icon { background: rgba(52,211,153,0.15); }
+    .panel-4 .panel-icon { background: rgba(251,146,60,0.15); }
+    .panel-title { font-weight: 700; font-size: 14px; }
+    .panel-1 .panel-title { color: var(--accent); }
+    .panel-2 .panel-title { color: var(--accent2); }
+    .panel-3 .panel-title { color: var(--accent3); }
+    .panel-4 .panel-title { color: var(--warn); }
+    .panel-body { padding: 20px 22px; transition: opacity 0.25s; }
+    .panel-body.updating { opacity: 0.3; }
+    .parcel-address { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700; line-height: 1.2; margin-bottom: 6px; }
+    .zone-badge {
+      display: inline-block;
+      background: rgba(79,142,247,0.12);
+      border: 1px solid rgba(79,142,247,0.3);
+      color: var(--accent); border-radius: 6px;
+      font-size: 12px; font-weight: 600;
+      padding: 4px 10px; margin-bottom: 18px; letter-spacing: 0.3px;
+    }
+    .parcel-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+    .parcel-row-icon { font-size: 16px; width: 22px; flex-shrink: 0; }
+    .parcel-row-label { font-size: 12px; color: var(--text-muted); width: 100px; flex-shrink: 0; }
+    .parcel-row-value { font-size: 13px; font-weight: 600; }
+    .units-big {
+      margin-top: 16px;
+      background: linear-gradient(135deg, rgba(79,142,247,0.08), rgba(167,139,250,0.08));
+      border: 1px solid rgba(79,142,247,0.2);
+      border-radius: var(--radius-sm); padding: 14px 16px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .units-num {
+      font-family: 'Outfit', sans-serif; font-size: 48px; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1;
+    }
+    .units-label { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .units-sub { font-size: 11px; color: var(--text-muted); }
+    .checklist-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .checklist-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .check-icon { width: 28px; height: 28px; border-radius: 8px; background: rgba(167,139,250,0.12); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+    .check-label { font-size: 12px; color: var(--text-muted); margin-bottom: 3px; font-weight: 500; }
+    .check-value { font-size: 14px; font-weight: 600; }
+    .check-link { font-size: 11px; color: var(--accent); margin-top: 3px; text-decoration: none; }
+    .check-link:hover { text-decoration: underline; }
+    .reform-item { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 12px; position: relative; overflow: hidden; }
+    .reform-item:last-child { margin-bottom: 0; }
+    .reform-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 2px 0 0 2px; }
+    .reform-override::before { background: var(--accent3); }
+    .reform-info::before { background: var(--accent); }
+    .reform-warn::before { background: var(--warn); }
+    .reform-tag { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+    .reform-override .reform-tag { color: var(--accent3); }
+    .reform-info .reform-tag { color: var(--accent); }
+    .reform-warn .reform-tag { color: var(--warn); }
+    .reform-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .reform-body { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .reform-body strong { color: var(--text); }
+    .adu-banner { background: linear-gradient(135deg, rgba(52,211,153,0.1), rgba(79,142,247,0.08)); border: 1px solid rgba(52,211,153,0.3); border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 16px; display: none; gap: 10px; align-items: flex-start; }
+    .adu-banner.show { display: flex; }
+    .adu-banner-icon { font-size: 20px; flex-shrink: 0; }
+    .adu-banner-text { font-size: 13px; color: var(--text); line-height: 1.6; }
+    .adu-banner-text strong { color: var(--accent3); }
+    .neighbor-hero { background: linear-gradient(135deg, rgba(251,146,60,0.08), rgba(167,139,250,0.06)); border: 1px solid rgba(251,146,60,0.2); border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 16px; }
+    .neighbor-hero p { font-size: 14px; line-height: 1.7; color: var(--text); }
+    .nearby-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .nearby-item:last-child { border-bottom: none; }
+    .nearby-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); flex-shrink: 0; }
+    .nearby-name { font-size: 13px; font-weight: 600; }
+    .nearby-meta { font-size: 11px; color: var(--text-muted); }
+    .nearby-dist { margin-left: auto; background: rgba(251,146,60,0.1); border: 1px solid rgba(251,146,60,0.2); border-radius: 6px; padding: 3px 9px; font-size: 11px; font-weight: 600; color: var(--warn); white-space: nowrap; }
+    .print-btn { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 10px; padding: 10px 20px; font-size: 13px; font-weight: 600; color: white; cursor: pointer; transition: all 0.2s; margin-top: 16px; box-shadow: 0 4px 16px rgba(79,142,247,0.3); }
+    .print-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,142,247,0.4); }
+    .disclaimer { margin-top: 24px; background: rgba(248,113,113,0.05); border: 1px solid rgba(248,113,113,0.2); border-radius: var(--radius-sm); padding: 12px 16px; font-size: 12px; color: rgba(248,113,113,0.8); line-height: 1.5; }
+    .nearby-section-label { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; letter-spacing: 0.5px; text-transform: uppercase; }
+
+    /* ── AI section ── */
+    .ai-section { margin-bottom: 24px; }
+    .ai-key-row { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+    .ai-key-input {
+      flex: 1; min-width: 260px;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 10px 14px;
+      font-size: 13px; color: var(--text); font-family: 'Inter', sans-serif;
+      outline: none; transition: border-color 0.2s;
+    }
+    .ai-key-input::placeholder { color: var(--text-muted); }
+    .ai-key-input:focus { border-color: var(--accent); }
+    .ai-key-input.saved { border-color: var(--accent3); }
+    .ai-key-btn {
+      background: linear-gradient(135deg, var(--accent3), #059669);
+      border: none; border-radius: 10px; padding: 10px 18px;
+      font-size: 13px; font-weight: 600; color: white; cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .ai-key-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(52,211,153,0.3); }
+    .ai-key-status { font-size: 12px; color: var(--text-muted); }
+    .ai-key-status.ok { color: var(--accent3); }
+    .ai-search-row { display: flex; gap: 10px; align-items: center; }
+    .ai-address-input {
+      flex: 1;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 12px; padding: 13px 18px;
+      font-size: 14px; color: var(--text); font-family: 'Inter', sans-serif;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .ai-address-input::placeholder { color: var(--text-muted); }
+    .ai-address-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,142,247,0.12); }
+    .ai-search-btn {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none; border-radius: 12px; padding: 13px 22px;
+      font-size: 14px; font-weight: 600; color: white; cursor: pointer;
+      transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+      box-shadow: 0 4px 16px rgba(79,142,247,0.3); white-space: nowrap;
+    }
+    .ai-search-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,142,247,0.4); }
+    .ai-search-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .ai-divider { display: flex; align-items: center; gap: 12px; margin: 14px 0; }
+    .ai-divider::before, .ai-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .ai-divider span { font-size: 11px; color: var(--text-muted); font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; }
+    .ai-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: linear-gradient(135deg, rgba(52,211,153,0.1), rgba(79,142,247,0.08));
+      border: 1px solid rgba(52,211,153,0.3);
+      border-radius: 20px; padding: 4px 12px;
+      font-size: 11px; font-weight: 600; color: var(--accent3);
+      margin-bottom: 14px;
+    }
+    .ai-spinner { display: none; }
+    .ai-spinner.show { display: flex; align-items: center; gap: 10px; padding: 20px; justify-content: center; }
+    .spinner-ring { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .ai-error { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: var(--radius-sm); padding: 12px 16px; font-size: 13px; color: var(--danger); display: none; margin-top: 10px; }
+    .ai-error.show { display: block; }
+    .panels-hidden { display: none; }
+    @media print {
+      body { background: white; color: #111; }
+      body::before { display: none; }
+      .search-section, .ai-section, .lang-row, .header-badge, .print-btn { display: none !important; }
+      .panel { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; page-break-inside: avoid; }
+      .panel-header::after { display: none; }
+      .panels-grid { grid-template-columns: 1fr 1fr; }
+      :root { --bg: white; --surface: #f9f9f9; --text: #111; --text-muted: #555; --border: #ddd; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🏘️</div>
+      <div class="logo-text">
+        <h1>ZoningShield RI</h1>
+        <span>Rhode Island Parcel Zoning Explorer</span>
+      </div>
+    </div>
+    <div class="header-badge">🏆 GDG PVD Hackathon 2026</div>
+  </header>
+
+  <!-- ── AI Search Section ── -->
+  <div class="ai-section">
+    <!-- API Key setup -->
+    <div class="ai-key-row" id="key-row">
+      <input class="ai-key-input" id="api-key-input" type="password" placeholder="🔑 Paste your Gemini API key (AIza...)" />
+      <button class="ai-key-btn" onclick="saveKey()">Save Key</button>
+      <span class="ai-key-status" id="key-status">No key set — using demo mode</span>
+    </div>
+    <!-- Address search -->
+    <div class="ai-search-row">
+      <input class="ai-address-input" id="ai-address-input" type="text"
+        placeholder="🔍 Type any Rhode Island address (e.g. 12 Hope St, Providence, RI)..."
+        onkeydown="if(event.key==='Enter') aiSearch()" />
+      <button class="ai-search-btn" id="ai-search-btn" onclick="aiSearch()">
+        <span>✨ Analyze with AI</span>
+      </button>
+    </div>
+    <div class="ai-error" id="ai-error"></div>
+    <div class="ai-spinner" id="ai-spinner">
+      <div class="spinner-ring"></div>
+      <span style="font-size:13px;color:var(--text-muted)">Gemini is analyzing this parcel...</span>
+    </div>
+    <div class="ai-divider"><span>or use instant demo cases</span></div>
+  </div>
+
+  <div class="search-section">
+    <div class="search-label">Quick demo parcels:</div>
+    <div class="search-row">
+      <button class="case-btn active" id="btn-a" onclick="selectCase('a')">
+        <div class="case-tag">🏙️ Test Case A — Providence</div>
+        <div class="case-address">245 Smith St, Providence, RI</div>
+        <div class="case-zone">R-3 · Three-Family District</div>
+      </button>
+      <button class="case-btn b" id="btn-b" onclick="selectCase('b')">
+        <div class="case-tag">🌳 Test Case B — Lincoln</div>
+        <div class="case-address">100 Old River Rd, Lincoln, RI</div>
+        <div class="case-zone">R-20 · Single-Family Residential</div>
+      </button>
+    </div>
+    <div class="lang-row">
+      <label>🌐 Language:</label>
+      <button class="lang-btn active" onclick="setLang('en')" id="lang-en">English</button>
+      <button class="lang-btn" onclick="setLang('es')" id="lang-es">Español</button>
+      <button class="lang-btn" onclick="setLang('pt')" id="lang-pt">Português</button>
+      <button class="lang-btn" onclick="setLang('ht')" id="lang-ht">Kreyòl Ayisyen</button>
+      <button class="lang-btn" onclick="setLang('fr')" id="lang-fr">Français</button>
+    </div>
+  </div>
+
+  <div class="panels-grid">
+    <div class="panel panel-1">
+      <div class="panel-header">
+        <div class="panel-icon">📍</div>
+        <div class="panel-title" id="p1-title">Parcel Info</div>
+      </div>
+      <div class="panel-body" id="panel-parcel-body"></div>
+    </div>
+    <div class="panel panel-2">
+      <div class="panel-header">
+        <div class="panel-icon">📋</div>
+        <div class="panel-title" id="p2-title">Town Checklist</div>
+      </div>
+      <div class="panel-body" id="panel-checklist-body"></div>
+    </div>
+    <div class="panel panel-3">
+      <div class="panel-header">
+        <div class="panel-icon">⚖️</div>
+        <div class="panel-title" id="p3-title">State Reform Audit</div>
+      </div>
+      <div class="panel-body" id="panel-reform-body"></div>
+    </div>
+    <div class="panel panel-4">
+      <div class="panel-header">
+        <div class="panel-icon">🏡</div>
+        <div class="panel-title" id="p4-title">Neighbor Summary</div>
+      </div>
+      <div class="panel-body" id="panel-neighbor-body"></div>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    ⚠️ <span id="disclaimer-text">Nothing in this application is official legal advice. Confirm all findings against the town's active ordinance and the Rhode Island Zoning Atlas.</span>
+  </div>
+
+</div>
+
+<script>
+var CASES = {
+  a: {
+    address: "245 Smith St, Providence, RI",
+    local_zone: "R-3 (Three-Family District)",
+    baseline_constraints: { lot_size: "4,000 sq ft", front_setback: "15 ft", side_setback: "8 ft", rear_setback: "20 ft", max_height: "35 ft", units_by_right: "3" },
+    nearby_places_list: [{ name: "Providence Station", type: "Transit Hub", distance: "0.4 miles" }],
+    adu_override: false, multifamily: true, transit_proximate: true,
+    ordinance_link: "https://library.municode.com/ri/providence/codes/code_of_ordinances",
+    atlas_link: "https://zoningatlas.org/rhode-island"
+  },
+  b: {
+    address: "100 Old River Rd, Lincoln, RI",
+    local_zone: "R-20 (Single-Family Residential)",
+    baseline_constraints: { lot_size: "20,000 sq ft", front_setback: "30 ft", side_setback: "15 ft", rear_setback: "30 ft", max_height: "35 ft", units_by_right: "1" },
+    nearby_places_list: [{ name: "Lincoln Woods Bus Stop", type: "Transit Connection", distance: "0.2 miles" }],
+    adu_override: true, multifamily: false, transit_proximate: true,
+    ordinance_link: "https://library.municode.com/ri/lincoln/codes/code_of_ordinances",
+    atlas_link: "https://zoningatlas.org/rhode-island"
+  }
+};
+
+var T = {
+  en: {
+    p1:"Parcel Info", p2:"Town Checklist", p3:"State Reform Audit", p4:"Neighbor Summary",
+    lot_size:"Lot Size", front_setback:"Front Setback", side_setback:"Side Setback", rear_setback:"Rear Setback",
+    max_height:"Max Height", units_by_right:"Units by Right",
+    zone_label:"Zoning District", units_label:"Units Allowed by Right", units_sub:"per Rhode Island zoning code",
+    ordinance_link:"View Ordinance →", atlas_link:"View Zoning Atlas →",
+    type_transit:"Transit Hub", type_bus:"Transit Connection", nearby_header:"Nearby Places",
+    adu_title:"ADU Override — State Law Applies",
+    adu_body:"Local R-20 zoning limits this lot to 1 unit. <strong>Under RIGL § 45-24-73, accessory dwelling units (ADUs) are allowed by right statewide</strong> on qualifying single-family lots. The local restriction is overridden by state law.",
+    r1_tag:"ADU — STATE OVERRIDE", r1_title:"Accessory Dwelling Units (ADUs)",
+    r2_tag:"PARKING REFORM", r2_title:"Off-Street Parking Waiver",
+    r3_tag:"MIDDLE HOUSING", r3_title:"Multi-Unit Review Pathways",
+    r_adu_override:"RIGL § 45-24-73 mandates that ADUs are <strong>legal by right statewide</strong> on single-family lots. The local R-20 code cannot block this. You may add an ADU without a special-use permit.",
+    r_adu_ok:"This parcel is in a multi-family zone (R-3). ADUs and additional units are already permitted by right. State reform law reinforces this allowance.",
+    r_parking:"This parcel is within a transit-proximate buffer. Rhode Island's 2024–2026 parking reforms may <strong>waive or reduce off-street parking minimums</strong>. Confirm with the local planning office.",
+    r_multifamily:"As a multi-family district, state middle-housing reform streamlines <strong>2–5 unit development reviews</strong>. No lengthy special-use permits required for projects within baseline constraints.",
+    r_epermit:"For single-family lots, the 2025 electronic permitting standards also apply — <strong>ADU permits may be filed online</strong> statewide.",
+    ns_a:"This neighborhood lot at <strong>245 Smith St</strong> already allows up to <strong>3 homes</strong> under local rules. It's close to Providence Station — making it a great spot for housing that helps families live near transit. No special permission is needed to build what's already allowed.",
+    ns_b:"This lot at <strong>100 Old River Rd</strong> is currently set for one home under local rules. But <strong>Rhode Island's new statewide law now allows a second smaller home</strong> (called an ADU) to be added — with no special hearing needed. This adds housing options without changing the neighborhood's character.",
+    print_btn:"Print / Save as PDF",
+    disclaimer:"Nothing in this application is official legal advice. Confirm all findings against the town's active ordinance and the Rhode Island Zoning Atlas.",
+    dist_label:"away", check_find:"Find it at:"
+  },
+  es: {
+    p1:"Información de la Parcela", p2:"Lista de Verificación Municipal", p3:"Auditoría de Reforma Estatal", p4:"Resumen para Vecinos",
+    lot_size:"Tamaño del Lote", front_setback:"Distancia Frontal de Línea", side_setback:"Distancia Lateral de Línea", rear_setback:"Distancia Posterior de Línea",
+    max_height:"Altura Máxima", units_by_right:"Unidades Permitidas por Derecho",
+    zone_label:"Distrito de Zonificación", units_label:"Unidades Permitidas por Derecho", units_sub:"según el código de zonificación de Rhode Island",
+    ordinance_link:"Ver Ordenanza →", atlas_link:"Ver Atlas de Zonificación →",
+    type_transit:"Centro de Tránsito", type_bus:"Conexión de Tránsito", nearby_header:"Lugares Cercanos",
+    adu_title:"Exención ADU — Aplica la Ley Estatal",
+    adu_body:"La zonificación local R-20 limita este lote a 1 unidad. <strong>Bajo RIGL § 45-24-73, las viviendas accesorias (ADUs) están permitidas por ley estatal</strong> en lotes unifamiliares calificados. La restricción local es anulada por la ley estatal.",
+    r1_tag:"ADU — ANULACIÓN ESTATAL", r1_title:"Viviendas Accesorias (ADUs)",
+    r2_tag:"REFORMA DE ESTACIONAMIENTO", r2_title:"Exención de Estacionamiento Fuera de la Vía",
+    r3_tag:"VIVIENDA MEDIA", r3_title:"Caminos de Revisión de Unidades Múltiples",
+    r_adu_override:"RIGL § 45-24-73 establece que las ADUs son <strong>legales por derecho a nivel estatal</strong> en lotes unifamiliares. El código local R-20 no puede bloquearlo.",
+    r_adu_ok:"Esta parcela está en una zona multifamiliar (R-3). Las ADUs y unidades adicionales ya están permitidas por derecho. La ley de reforma estatal refuerza esta autorización.",
+    r_parking:"Esta parcela está dentro de una zona próxima al tránsito. Las reformas de estacionamiento de Rhode Island 2024–2026 pueden <strong>eximir o reducir los requisitos mínimos de estacionamiento</strong>.",
+    r_multifamily:"Como distrito multifamiliar, la reforma estatal de vivienda media agiliza las <strong>revisiones de desarrollo de 2 a 5 unidades</strong>. No se requieren permisos especiales prolongados.",
+    r_epermit:"Para lotes unifamiliares, los estándares de permisos electrónicos de 2025 también aplican — <strong>los permisos de ADU pueden presentarse en línea</strong> en todo el estado.",
+    ns_a:"Este lote en <strong>245 Smith St</strong> ya permite hasta <strong>3 hogares</strong> según las reglas locales. Está cerca de Providence Station, ideal para vivienda cerca del transporte. No se necesita permiso especial.",
+    ns_b:"Este lote en <strong>100 Old River Rd</strong> actualmente está destinado a una sola vivienda. Pero <strong>la nueva ley estatal de Rhode Island ahora permite agregar una segunda vivienda más pequeña</strong> (ADU) sin audiencia especial.",
+    print_btn:"Imprimir / Guardar como PDF",
+    disclaimer:"Nada en esta aplicación constituye asesoramiento legal oficial. Confirme todos los hallazgos con la ordenanza activa del municipio y el Atlas de Zonificación de Rhode Island.",
+    dist_label:"de distancia", check_find:"Encuéntrelo en:"
+  },
+  pt: {
+    p1:"Informações da Parcela", p2:"Lista de Verificação Municipal", p3:"Auditoria de Reforma Estadual", p4:"Resumo para Vizinhos",
+    lot_size:"Tamanho do Lote", front_setback:"Distância Frontal da Linha", side_setback:"Distância Lateral da Linha", rear_setback:"Distância Traseira da Linha",
+    max_height:"Altura Máxima", units_by_right:"Unidades Permitidas por Direito",
+    zone_label:"Distrito de Zoneamento", units_label:"Unidades Permitidas por Direito", units_sub:"conforme o código de zoneamento de Rhode Island",
+    ordinance_link:"Ver Ordenança →", atlas_link:"Ver Atlas de Zoneamento →",
+    type_transit:"Hub de Trânsito", type_bus:"Conexão de Trânsito", nearby_header:"Lugares Próximos",
+    adu_title:"Substituição ADU — Lei Estadual se Aplica",
+    adu_body:"O zoneamento local R-20 limita este lote a 1 unidade. <strong>Segundo RIGL § 45-24-73, as unidades acessórias (ADUs) são permitidas por lei estadual</strong> em lotes unifamiliares qualificados.",
+    r1_tag:"ADU — SUBSTITUIÇÃO ESTADUAL", r1_title:"Unidades Residenciais Acessórias (ADUs)",
+    r2_tag:"REFORMA DE ESTACIONAMENTO", r2_title:"Isenção de Estacionamento Fora da Via",
+    r3_tag:"HABITAÇÃO MÉDIA", r3_title:"Caminhos de Revisão de Múltiplas Unidades",
+    r_adu_override:"RIGL § 45-24-73 determina que ADUs são <strong>legais por direito em todo o estado</strong> em lotes unifamiliares. O código local R-20 não pode bloquear isso.",
+    r_adu_ok:"Esta parcela está em uma zona multifamiliar (R-3). ADUs e unidades adicionais já são permitidas por direito. A lei de reforma estadual reforça essa autorização.",
+    r_parking:"Esta parcela está dentro de um raio próximo ao transporte. As reformas de estacionamento de Rhode Island 2024–2026 podem <strong>isentar ou reduzir os requisitos mínimos de estacionamento</strong>.",
+    r_multifamily:"Como distrito multifamiliar, a reforma estadual de habitação média agiliza as <strong>revisões de desenvolvimento de 2 a 5 unidades</strong>. Nenhuma licença especial prolongada é necessária.",
+    r_epermit:"Para lotes unifamiliares, os padrões de licenciamento eletrônico de 2025 se aplicam — <strong>as licenças de ADU podem ser enviadas online</strong> em todo o estado.",
+    ns_a:"Este lote em <strong>245 Smith St</strong> já permite até <strong>3 residências</strong> pelas regras locais. Fica perto da Providence Station, ótimo para habitação próxima ao transporte.",
+    ns_b:"Este lote em <strong>100 Old River Rd</strong> é destinado a uma única casa pelas regras locais. Mas <strong>a nova lei estadual de Rhode Island permite adicionar uma segunda casa menor</strong> (ADU) sem audiência especial.",
+    print_btn:"Imprimir / Salvar como PDF",
+    disclaimer:"Nada neste aplicativo constitui aconselhamento jurídico oficial. Confirme todas as descobertas com a ordenança ativa do município e o Atlas de Zoneamento de Rhode Island.",
+    dist_label:"de distância", check_find:"Encontre em:"
+  },
+  ht: {
+    p1:"Enfòmasyon Pasyèl la", p2:"Lis Verifikasyon Minisipal", p3:"Odyèt Refòm Eta a", p4:"Rezime pou Vwazen yo",
+    lot_size:"Gwosè Tè a", front_setback:"Distans Devan Limit", side_setback:"Distans Kote Limit", rear_setback:"Distans Dèyè Limit",
+    max_height:"Wotè Maksimòm", units_by_right:"Inite Pèmèt pa Dwa",
+    zone_label:"Distri Zonaj", units_label:"Inite Pèmèt pa Dwa", units_sub:"selon kòd zonaj Rhode Island",
+    ordinance_link:"Wè Òdonans →", atlas_link:"Wè Atlas Zonaj →",
+    type_transit:"Estasyon Transit", type_bus:"Koneksyon Transit", nearby_header:"Kote ki Pre",
+    adu_title:"Ranplasman ADU — Lwa Eta a Aplike",
+    adu_body:"Zonaj lokal R-20 limite tè sa a a 1 inite. <strong>Dapre RIGL § 45-24-73, inite akseswa (ADU) yo otorize pa lwa eta a</strong> sou tè ki kalifye pou yon sèl fanmi.",
+    r1_tag:"ADU — RANPLASMAN ETA", r1_title:"Inite Rezidansyèl Akseswa (ADU)",
+    r2_tag:"REFÒM PAKIN", r2_title:"Egzansyon Pakin Deyò Wout la",
+    r3_tag:"LOJMAN MWAYEN", r3_title:"Chemen Revizyon Plizyè Inite",
+    r_adu_override:"RIGL § 45-24-73 mande ke ADU yo se <strong>legal pa dwa nan tout eta a</strong> sou tè pou yon sèl fanmi. Kòd lokal R-20 la pa ka bloke sa.",
+    r_adu_ok:"Pasyèl sa a nan yon zòn plizyè fanmi (R-3). ADU yo ak inite adisyonèl yo deja pèmèt pa dwa. Lwa refòm eta a ranfòse otorizasyon sa a.",
+    r_parking:"Pasyèl sa a nan yon zòn tou pre transit. Refòm pakin Rhode Island 2024–2026 yo ka <strong>egzante oswa redui minimòm pakin deyò wout</strong>.",
+    r_multifamily:"Kòm distri plizyè fanmi, refòm lojman mwayen eta a simplifye <strong>revizyon devlopman 2 a 5 inite</strong>. Pa bezwen pèmi espesyal ki long.",
+    r_epermit:"Pou tè pou yon sèl fanmi, estanda pèmi elektwonik 2025 yo aplike tou — <strong>pèmi ADU ka soumèt sou entènèt</strong> nan tout eta a.",
+    ns_a:"Tè sa a nan <strong>245 Smith St</strong> deja pèmèt jiska <strong>3 kay</strong> dapre règ lokal yo. Li pre Providence Station, sa ki fè li yon bon kote pou lojman pre transpò.",
+    ns_b:"Tè sa a nan <strong>100 Old River Rd</strong> aktyèlman destine pou yon sèl kay. Men <strong>nouvo lwa eta Rhode Island kounye a pèmèt ajoute yon dezyèm ti kay</strong> (ADU) san odyans espesyal.",
+    print_btn:"Enprime / Sove kòm PDF",
+    disclaimer:"Anyen nan aplikasyon sa a pa konseye legal ofisyèl. Konfime tout rezilta yo ak òdonans aktif vil la ak Atlas Zonaj Rhode Island la.",
+    dist_label:"lwen", check_find:"Jwenn li nan:"
+  },
+  fr: {
+    p1:"Informations sur la Parcelle", p2:"Liste de Vérification Municipale", p3:"Audit de Réforme de l'État", p4:"Résumé pour les Voisins",
+    lot_size:"Superficie du Terrain", front_setback:"Distance de la Limite Avant", side_setback:"Distance de la Limite Latérale", rear_setback:"Distance de la Limite Arrière",
+    max_height:"Hauteur Maximale", units_by_right:"Unités Permises de Plein Droit",
+    zone_label:"District de Zonage", units_label:"Unités Permises de Plein Droit", units_sub:"selon le code de zonage de Rhode Island",
+    ordinance_link:"Voir l'Ordonnance →", atlas_link:"Voir l'Atlas de Zonage →",
+    type_transit:"Hub de Transit", type_bus:"Connexion de Transit", nearby_header:"Lieux à Proximité",
+    adu_title:"Dérogation ADU — Loi de l'État Applicable",
+    adu_body:"Le zonage local R-20 limite ce terrain à 1 unité. <strong>Selon RIGL § 45-24-73, les unités d'habitation accessoires (ADU) sont autorisées de plein droit à l'échelle de l'État</strong> sur les terrains unifamiliaux qualifiés.",
+    r1_tag:"ADU — DÉROGATION D'ÉTAT", r1_title:"Unités d'Habitation Accessoires (ADU)",
+    r2_tag:"RÉFORME DU STATIONNEMENT", r2_title:"Dérogation au Stationnement Hors Voirie",
+    r3_tag:"LOGEMENT INTERMÉDIAIRE", r3_title:"Voies de Révision Multi-Unités",
+    r_adu_override:"RIGL § 45-24-73 impose que les ADU soient <strong>légaux de plein droit à l'échelle de l'État</strong> sur les terrains unifamiliaux. Le code local R-20 ne peut pas bloquer cela.",
+    r_adu_ok:"Cette parcelle est dans une zone multifamiliale (R-3). Les ADU et unités supplémentaires sont déjà autorisées de plein droit. La loi de réforme de l'État renforce cette autorisation.",
+    r_parking:"Cette parcelle est dans une zone à proximité du transit. Les réformes de stationnement de Rhode Island 2024–2026 peuvent <strong>exempter ou réduire les minimums de stationnement hors voirie</strong>.",
+    r_multifamily:"En tant que district multifamilial, la réforme de logement intermédiaire de l'État simplifie les <strong>révisions de développement de 2 à 5 unités</strong>. Aucun permis spécial prolongé n'est requis.",
+    r_epermit:"Pour les terrains unifamiliaux, les normes de permis électronique 2025 s'appliquent également — <strong>les permis ADU peuvent être soumis en ligne</strong> dans tout l'État.",
+    ns_a:"Ce terrain au <strong>245 Smith St</strong> permet déjà jusqu'à <strong>3 logements</strong> selon les règles locales. Il est proche de Providence Station, idéal pour des logements proches des transports.",
+    ns_b:"Ce terrain au <strong>100 Old River Rd</strong> est destiné à une seule maison selon les règles locales. Mais <strong>la nouvelle loi de l'État de Rhode Island permet d'ajouter une deuxième maison plus petite</strong> (ADU) sans audience spéciale.",
+    print_btn:"Imprimer / Enregistrer en PDF",
+    disclaimer:"Rien dans cette application ne constitue un conseil juridique officiel. Confirmez toutes les conclusions avec l'ordonnance active de la ville et l'Atlas de Zonage de Rhode Island.",
+    dist_label:"de distance", check_find:"Trouvez-le sur:"
+  }
+};
+
+var currentCase = 'a';
+var currentLang = 'en';
+
+function render() {
+  var data = CASES[currentCase];
+  var t = T[currentLang];
+  var c = data.baseline_constraints;
+
+  document.getElementById('p1-title').textContent = t.p1;
+  document.getElementById('p2-title').textContent = t.p2;
+  document.getElementById('p3-title').textContent = t.p3;
+  document.getElementById('p4-title').textContent = t.p4;
+
+  // Panel 1
+  document.getElementById('panel-parcel-body').innerHTML =
+    '<div class="parcel-address">' + data.address + '</div>' +
+    '<div class="zone-badge">' + data.local_zone + '</div>' +
+    '<div class="parcel-row"><div class="parcel-row-icon">📐</div><div class="parcel-row-label">' + t.lot_size + '</div><div class="parcel-row-value">' + c.lot_size + '</div></div>' +
+    '<div class="parcel-row"><div class="parcel-row-icon">🏗️</div><div class="parcel-row-label">' + t.max_height + '</div><div class="parcel-row-value">' + c.max_height + '</div></div>' +
+    '<div class="parcel-row"><div class="parcel-row-icon">📜</div><div class="parcel-row-label">Ordinance</div><div class="parcel-row-value"><a class="check-link" href="' + data.ordinance_link + '" target="_blank">' + t.ordinance_link + '</a></div></div>' +
+    '<div class="parcel-row"><div class="parcel-row-icon">🗺️</div><div class="parcel-row-label">Atlas</div><div class="parcel-row-value"><a class="check-link" href="' + data.atlas_link + '" target="_blank">' + t.atlas_link + '</a></div></div>' +
+    '<div class="units-big"><div class="units-num">' + c.units_by_right + '</div><div><div class="units-label">' + t.units_label + '</div><div class="units-sub">' + t.units_sub + '</div></div></div>';
+
+  // Panel 2
+  var checks = [
+    { icon:"📐", label:t.lot_size, value:c.lot_size },
+    { icon:"⬆️", label:t.front_setback, value:c.front_setback },
+    { icon:"↔️", label:t.side_setback, value:c.side_setback },
+    { icon:"⬇️", label:t.rear_setback, value:c.rear_setback },
+    { icon:"🏗️", label:t.max_height, value:c.max_height },
+    { icon:"🏠", label:t.units_by_right, value:c.units_by_right }
+  ];
+  document.getElementById('panel-checklist-body').innerHTML = checks.map(function(ch) {
+    return '<div class="checklist-item"><div class="check-icon">' + ch.icon + '</div><div><div class="check-label">' + ch.label + '</div><div class="check-value">' + ch.value + '</div><div>' + t.check_find + ' <a class="check-link" href="' + data.ordinance_link + '" target="_blank">' + t.ordinance_link + '</a></div></div></div>';
+  }).join('');
+
+  // Panel 3
+  var reforms = '';
+  if (data.adu_override) {
+    reforms += '<div class="reform-item reform-override"><div class="reform-tag">' + t.r1_tag + '</div><div class="reform-title">' + t.r1_title + '</div><div class="reform-body">' + t.r_adu_override + '</div></div>';
+  } else {
+    reforms += '<div class="reform-item reform-info"><div class="reform-tag">' + t.r1_tag + '</div><div class="reform-title">' + t.r1_title + '</div><div class="reform-body">' + t.r_adu_ok + '</div></div>';
+  }
+  if (data.transit_proximate) {
+    reforms += '<div class="reform-item reform-warn"><div class="reform-tag">' + t.r2_tag + '</div><div class="reform-title">' + t.r2_title + '</div><div class="reform-body">' + t.r_parking + '</div></div>';
+  }
+  if (data.multifamily) {
+    reforms += '<div class="reform-item reform-info"><div class="reform-tag">' + t.r3_tag + '</div><div class="reform-title">' + t.r3_title + '</div><div class="reform-body">' + t.r_multifamily + '</div></div>';
+  } else {
+    reforms += '<div class="reform-item reform-info"><div class="reform-tag">2025 E-PERMITS</div><div class="reform-title">Electronic Permitting</div><div class="reform-body">' + t.r_epermit + '</div></div>';
+  }
+  document.getElementById('panel-reform-body').innerHTML = reforms;
+
+  // Panel 4
+  var nearbyHTML = data.nearby_places_list.map(function(p) {
+    var typeLabel = p.type === "Transit Hub" ? t.type_transit : t.type_bus;
+    return '<div class="nearby-item"><div class="nearby-dot"></div><div><div class="nearby-name">' + p.name + '</div><div class="nearby-meta">' + typeLabel + '</div></div><div class="nearby-dist">' + p.distance + ' ' + t.dist_label + '</div></div>';
+  }).join('');
+  var summaryText = currentCase === 'a' ? t.ns_a : t.ns_b;
+  var aduBanner = data.adu_override ? '<div class="adu-banner show"><div class="adu-banner-icon">✅</div><div class="adu-banner-text"><strong>' + t.adu_title + '</strong><br/><br/>' + t.adu_body + '</div></div>' : '';
+  document.getElementById('panel-neighbor-body').innerHTML =
+    aduBanner +
+    '<div class="neighbor-hero"><p>' + summaryText + '</p></div>' +
+    '<div class="nearby-section-label">' + t.nearby_header + '</div>' +
+    nearbyHTML +
+    '<button class="print-btn" onclick="window.print()">🖨️ ' + t.print_btn + '</button>';
+
+  document.getElementById('disclaimer-text').textContent = t.disclaimer;
+}
+
+function selectCase(c) {
+  currentCase = c;
+  document.getElementById('btn-a').classList.toggle('active', c === 'a');
+  document.getElementById('btn-b').classList.toggle('active', c === 'b');
+  animateUpdate();
+}
+
+function setLang(lang) {
+  currentLang = lang;
+  ['en','es','pt','ht','fr'].forEach(function(l) { document.getElementById('lang-' + l).classList.remove('active'); });
+  document.getElementById('lang-' + lang).classList.add('active');
+  animateUpdate();
+}
+
+function animateUpdate() {
+  var bodies = document.querySelectorAll('.panel-body');
+  bodies.forEach(function(el) { el.classList.add('updating'); });
+  setTimeout(function() {
+    render();
+    bodies.forEach(function(el) { el.classList.remove('updating'); });
+  }, 200);
+}
+
+render();
+
+// ================================================================
+//  GEMINI AI INTEGRATION
+// ================================================================
+var geminiKey = '';
+
+function saveKey() {
+  var input = document.getElementById('api-key-input');
+  var key = input.value.trim();
+  if (!key || !key.startsWith('AIza')) {
+    showError('Please paste a valid Gemini API key starting with "AIza..."');
+    return;
+  }
+  geminiKey = key;
+  input.classList.add('saved');
+  input.value = '••••••••••••••••••••••••••';
+  var status = document.getElementById('key-status');
+  status.textContent = '✅ Key saved — AI search enabled';
+  status.classList.add('ok');
+  hideError();
+}
+
+function showError(msg) {
+  var el = document.getElementById('ai-error');
+  el.textContent = '⚠️ ' + msg;
+  el.classList.add('show');
+}
+function hideError() {
+  document.getElementById('ai-error').classList.remove('show');
+}
+function setLoading(on) {
+  document.getElementById('ai-spinner').classList.toggle('show', on);
+  document.getElementById('ai-search-btn').disabled = on;
+}
+
+async function aiSearch() {
+  var address = document.getElementById('ai-address-input').value.trim();
+  if (!address) { showError('Please type a Rhode Island address first.'); return; }
+  if (!geminiKey) { showError('No API key saved. Please enter your Gemini API key above, or use the demo cases below.'); return; }
+  hideError();
+  setLoading(true);
+
+  // Deselect test case buttons
+  document.getElementById('btn-a').classList.remove('active');
+  document.getElementById('btn-b').classList.remove('active');
+
+  var systemPrompt = `You are ZoningShield RI, an expert in Rhode Island's 39 local zoning codes and RIGL § 45-24 state housing reforms.
+A user will give you a Rhode Island address. You must return a SINGLE valid JSON object (no markdown, no commentary) with this exact schema:
+
+{
+  "address": "string — the address as given",
+  "local_zone": "string — likely zoning district code and name (e.g. R-2 (Single-Family Residential)). If unknown, make a reasonable guess based on RI norms and state clearly it is estimated.",
+  "baseline_constraints": {
+    "lot_size": "string — typical minimum lot size for this zone (e.g. 10,000 sq ft)",
+    "front_setback": "string",
+    "side_setback": "string",
+    "rear_setback": "string",
+    "max_height": "string",
+    "units_by_right": "string — number only (e.g. 1, 2, 3)"
+  },
+  "nearby_places_list": [
+    { "name": "string — a real landmark near this address", "type": "Transit Hub or Transit Connection or Park or School", "distance": "string e.g. 0.3 miles" }
+  ],
+  "adu_override": true or false,
+  "multifamily": true or false,
+  "transit_proximate": true or false,
+  "ordinance_link": "https://library.municode.com/ri — best guess URL for this town",
+  "atlas_link": "https://zoningatlas.org/rhode-island",
+  "ai_reform_note": "string — 1-2 sentences on how 2024-2026 RI housing reforms (RIGL § 45-24-73 ADU act, parking reform) apply to this specific address. Plain language.",
+  "ai_neighbor_summary": "string — 2-3 sentences in plain language a non-expert can understand. What can be built here? What does state law allow that local zoning might not? Keep it warm and helpful."
+}
+
+RULES:
+- adu_override = true ONLY if the zone is single-family AND local rules would restrict ADUs but RIGL § 45-24-73 overrides it.
+- multifamily = true if units_by_right >= 2.
+- transit_proximate = true if the address is near a bus stop, train, or transit hub (reasonable guess for RI).
+- NEVER fabricate specific ordinance section numbers. Use the municode link pattern.
+- Return ONLY the JSON. No explanation text before or after.`;
+
+  var userMessage = 'Address: ' + address;
+
+  try {
+    var resp = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + geminiKey,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+          generationConfig: { temperature: 0.3, maxOutputTokens: 1500 }
+        })
+      }
+    );
+
+    if (!resp.ok) {
+      var err = await resp.json();
+      throw new Error((err.error && err.error.message) || 'API error ' + resp.status);
+    }
+
+    var data = await resp.json();
+    var raw = data.candidates[0].content.parts[0].text.trim();
+
+    // Strip markdown fences if Gemini adds them anyway
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+
+    var parsed = JSON.parse(raw);
+    setLoading(false);
+    renderAIResult(parsed);
+
+  } catch(e) {
+    setLoading(false);
+    showError('Gemini error: ' + e.message + '. Check your API key and try again.');
+  }
+}
+
+function renderAIResult(data) {
+  // Show AI badge on panel 1
+  var aiBadge = '<div class="ai-badge">✨ Powered by Gemini 1.5 Flash — Estimated zoning, not official</div>';
+
+  var c = data.baseline_constraints;
+  var t = T[currentLang];
+
+  // Panel 1
+  document.getElementById('panel-parcel-body').innerHTML =
+    aiBadge +
+    '<div class="parcel-address">' + data.address + '</div>' +
+    '<div class="zone-badge">' + data.local_zone + '</div>' +
+    '<div class="parcel-row"><div class="parcel-row-icon">📐</div><div class="parcel-row-label">' + t.lot_size + '</div><div class="parcel-row-value">' + c.lot_size + '</div></div>' +
+    '<div class="parcel-row"><div class="parcel-row-icon">🏗️</div><div class="parcel-row-label">' + t.max_height + '</div><div class="parcel-row-value">' + c.max_height + '</div></div>' +
+    '<div class="parcel-row"><div class="parcel-row-icon">📜</div><div class="parcel-row-label">Ordinance</div><div class="parcel-row-value"><a class="check-link" href="' + data.ordinance_link + '" target="_blank">' + t.ordinance_link + '</a></div></div>' +
+    '<div class="parcel-row"><div class="parcel-row-icon">🗺️</div><div class="parcel-row-label">Atlas</div><div class="parcel-row-value"><a class="check-link" href="' + data.atlas_link + '" target="_blank">' + t.atlas_link + '</a></div></div>' +
+    '<div class="units-big"><div class="units-num">' + c.units_by_right + '</div><div><div class="units-label">' + t.units_label + '</div><div class="units-sub">' + t.units_sub + '</div></div></div>';
+
+  // Panel 2
+  var checks = [
+    { icon:'📐', label:t.lot_size, value:c.lot_size },
+    { icon:'⬆️', label:t.front_setback, value:c.front_setback },
+    { icon:'↔️', label:t.side_setback, value:c.side_setback },
+    { icon:'⬇️', label:t.rear_setback, value:c.rear_setback },
+    { icon:'🏗️', label:t.max_height, value:c.max_height },
+    { icon:'🏠', label:t.units_by_right, value:c.units_by_right }
+  ];
+  document.getElementById('panel-checklist-body').innerHTML = checks.map(function(ch) {
+    return '<div class="checklist-item"><div class="check-icon">' + ch.icon + '</div><div><div class="check-label">' + ch.label + '</div><div class="check-value">' + ch.value + '</div><div>' + t.check_find + ' <a class="check-link" href="' + data.ordinance_link + '" target="_blank">' + t.ordinance_link + '</a></div></div></div>';
+  }).join('');
+
+  // Panel 3 — use AI reform note
+  var reforms = '';
+  if (data.adu_override) {
+    reforms += '<div class="reform-item reform-override"><div class="reform-tag">' + t.r1_tag + '</div><div class="reform-title">' + t.r1_title + '</div><div class="reform-body">' + t.r_adu_override + '</div></div>';
+  } else {
+    reforms += '<div class="reform-item reform-info"><div class="reform-tag">' + t.r1_tag + '</div><div class="reform-title">' + t.r1_title + '</div><div class="reform-body">' + t.r_adu_ok + '</div></div>';
+  }
+  if (data.transit_proximate) {
+    reforms += '<div class="reform-item reform-warn"><div class="reform-tag">' + t.r2_tag + '</div><div class="reform-title">' + t.r2_title + '</div><div class="reform-body">' + t.r_parking + '</div></div>';
+  }
+  if (data.ai_reform_note) {
+    reforms += '<div class="reform-item reform-info"><div class="reform-tag">✨ AI INSIGHT</div><div class="reform-title">Gemini Analysis</div><div class="reform-body">' + data.ai_reform_note + '</div></div>';
+  }
+  document.getElementById('panel-reform-body').innerHTML = reforms;
+
+  // Panel 4
+  var nearbyHTML = (data.nearby_places_list || []).map(function(p) {
+    var typeLabel = p.type;
+    return '<div class="nearby-item"><div class="nearby-dot"></div><div><div class="nearby-name">' + p.name + '</div><div class="nearby-meta">' + typeLabel + '</div></div><div class="nearby-dist">' + p.distance + ' away</div></div>';
+  }).join('');
+  var summaryText = data.ai_neighbor_summary || 'Analysis complete. See zoning details in the panels above.';
+  var aduBanner = data.adu_override ? '<div class="adu-banner show"><div class="adu-banner-icon">✅</div><div class="adu-banner-text"><strong>' + t.adu_title + '</strong><br/><br/>' + t.adu_body + '</div></div>' : '';
+  document.getElementById('panel-neighbor-body').innerHTML =
+    aduBanner +
+    '<div class="neighbor-hero"><p>' + summaryText + '</p></div>' +
+    (nearbyHTML ? '<div class="nearby-section-label">' + t.nearby_header + '</div>' + nearbyHTML : '') +
+    '<button class="print-btn" onclick="window.print()">🖨️ ' + t.print_btn + '</button>';
+
+  document.getElementById('disclaimer-text').textContent = t.disclaimer;
+}
+</script>
+</body>
+</html>
